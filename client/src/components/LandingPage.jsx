@@ -5,14 +5,18 @@ import featureCode from "../assets/feature-code.png";
 import featureAudio from "../assets/feature-audio.png";
 import featureChart from "../assets/feature-chart.png";
 
-export default function LandingPage({ onGetStarted }) {
+export default function LandingPage({ onGetStarted, onNavigate }) {
+  const handleCardClick = (target) => { // Navigation handler for cards
+     if (onNavigate) onNavigate(target);
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-black selection:text-white">
       {/* --- Navbar --- */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center space-x-12">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
               {/* Logo Icon */}
               <svg
                 width="24"
@@ -31,18 +35,18 @@ export default function LandingPage({ onGetStarted }) {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-xl font-bold tracking-tight">Sai Suraj</span>
+              <span className="text-xl font-bold tracking-tight">Intelli-Prep</span>
             </div>
             <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-500">
-              <a href="#" className="hover:text-black transition-colors">
+              <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-black transition-colors">
                 One Company
-              </a>
-              <a href="#" className="hover:text-black transition-colors">
+              </button>
+              <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-black transition-colors">
                 Search Analysis
-              </a>
-              <a href="#" className="hover:text-black transition-colors">
+              </button>
+              <button onClick={() => document.getElementById('footer')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-black transition-colors">
                 Recent Program
-              </a>
+              </button>
             </div>
           </div>
           <div className="flex items-center space-x-4 text-slate-400">
@@ -73,11 +77,11 @@ export default function LandingPage({ onGetStarted }) {
           <div className="flex items-center space-x-4">
             <button
               onClick={onGetStarted}
-              className="px-8 py-3 bg-black text-white rounded-lg font-medium hover:bg-slate-800 transition-all hover:scale-105 active:scale-95"
+              className="px-8 py-3 bg-black text-white rounded-lg font-medium hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20"
             >
               Get started
             </button>
-            <button className="px-8 py-3 bg-white text-slate-900 border border-slate-200 rounded-lg font-medium hover:bg-slate-50 transition-all">
+            <button onClick={() => handleCardClick("topics")} className="px-8 py-3 bg-white text-slate-900 border border-slate-200 rounded-lg font-medium hover:bg-slate-50 transition-all">
               Explore topics
             </button>
           </div>
@@ -100,12 +104,18 @@ export default function LandingPage({ onGetStarted }) {
       </section>
 
       {/* --- Features Section --- */}
-      <section className="py-24 bg-slate-50/50">
+      <section id="features" className="py-24 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="group bg-slate-100/50 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 border border-transparent hover:border-slate-100">
-              <h3 className="text-xl font-bold mb-3">Live Coding Prep</h3>
+            {/* Feature 1 - Clickable */}
+            <div 
+              onClick={() => handleCardClick("topics")}
+              className="group bg-slate-100/50 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 border border-transparent hover:border-slate-100 cursor-pointer relative overflow-hidden"
+            >
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ChevronRight className="w-5 h-5 text-slate-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-3 group-hover:text-blue-600 transition-colors">Live Coding Prep</h3>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed">
                 Practice DSA questions with voice-to-code analysis.
               </p>
@@ -119,8 +129,8 @@ export default function LandingPage({ onGetStarted }) {
             </div>
 
             {/* Feature 2 */}
-            <div className="group bg-slate-100/50 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 border border-transparent hover:border-slate-100">
-              <h3 className="text-xl font-bold mb-3">Speech Analysis</h3>
+            <div className="group bg-slate-100/50 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 border border-transparent hover:border-slate-100 cursor-pointer">
+              <h3 className="text-xl font-bold mb-3 group-hover:text-purple-600 transition-colors">Speech Analysis</h3>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed">
                 Detect filler words, pacing issues, and confidence levels.
               </p>
@@ -134,8 +144,8 @@ export default function LandingPage({ onGetStarted }) {
             </div>
 
             {/* Feature 3 */}
-            <div className="group bg-slate-100/50 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 border border-transparent hover:border-slate-100">
-              <h3 className="text-xl font-bold mb-3">Detailed Analysis</h3>
+            <div className="group bg-slate-100/50 p-8 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 border border-transparent hover:border-slate-100 cursor-pointer">
+              <h3 className="text-xl font-bold mb-3 group-hover:text-green-600 transition-colors">Detailed Analysis</h3>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed">
                 Track your progress and readiness score over time.
               </p>
@@ -152,7 +162,7 @@ export default function LandingPage({ onGetStarted }) {
       </section>
 
       {/* --- Footer --- */}
-      <footer className="py-20 border-t border-slate-100 bg-white">
+      <footer id="footer" className="py-20 border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-1">
             <h4 className="font-bold text-lg mb-4">Intelli-Prep</h4>

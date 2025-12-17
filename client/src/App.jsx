@@ -3,19 +3,6 @@ import LandingPage from "./components/LandingPage";
 import AuthScreen from "./components/Auth";
 import { DashboardHome, Sidebar, TopicBrowser } from "./components/Dashboard";
 import { InterviewSession, ResultView } from "./components/Session";
-
-// --- Database Logic (Client-Side Simulation) ---
-// Moving this to a utility file would be better, but keeping here for now to ensure continuity
-// or assuming it might be moved to lib in future. For now, let's keep the db object available globally
-// or import it if it was moved. 
-// Wait, I saw `import { db } from "../lib/db";` in Auth.jsx. 
-// Let's create `src/lib/db.js` if it doesn't exist, or just use what we have.
-// Checking file view, `lib` dir exists. I should probably move db logic there if not already.
-// For this step, I will assume I need to keep the db logic accessible or move it.
-// Actually, Auth.jsx imported it from `../lib/db`. Let's assume I should move it there.
-// I'll create/overwrite lib/db.js in the next step to be safe. 
-// For now, let's import it.
-
 import { db } from "./lib/db";
 
 export default function App() {
@@ -53,9 +40,15 @@ export default function App() {
     if (user && activeTopic) {
       const updatedUser = { ...user };
       if (!updatedUser.progress) updatedUser.progress = {};
+      
+      // Increment questions solved count based on answers length
       updatedUser.progress[activeTopic] =
-        (updatedUser.progress[activeTopic] || 0) + 1;
-      updatedUser.totalHours = (updatedUser.totalHours || 0) + 0.5;
+        (updatedUser.progress[activeTopic] || 0) + data.answers.length;
+      
+      // Update total hours based on actual duration (seconds to hours)
+      // Round to 2 decimal places for display validity
+      const hoursAdded = data.duration / 3600;
+      updatedUser.totalHours = parseFloat(((updatedUser.totalHours || 0) + hoursAdded).toFixed(2));
 
       db.saveUser(updatedUser);
       sessionStorage.setItem("intelli_user", JSON.stringify(updatedUser));
@@ -66,7 +59,22 @@ export default function App() {
   // --- Router ---
 
   if (view === "landing") {
-    return <LandingPage onGetStarted={() => setView("auth")} />;
+    return (
+      <LandingPage 
+        onGetStarted={() => setView("auth")} 
+        onNavigate={(target) => {
+          if (target === "topics") {
+            // If user is not logged in, they should go to auth first, or maybe we allow viewing topics?
+            // User flow: "Explore topics" -> Auth -> Topics
+            if (!user) {
+              setView("auth"); 
+            } else {
+              setView("topics");
+            }
+          }
+        }}
+      />
+    );
   }
 
   if (view === "auth") {

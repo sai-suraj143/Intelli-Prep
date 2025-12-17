@@ -76,6 +76,36 @@ export const TOPICS = [
     textColor: "text-cyan-600",
     questionsCount: 7,
   },
+  {
+    id: "mobile",
+    name: "Mobile Development",
+    description: "React Native, Swift",
+    icon: <Layout className="w-6 h-6" />,
+    color: "bg-indigo-600",
+    bgColor: "bg-indigo-50",
+    textColor: "text-indigo-600",
+    questionsCount: 6,
+  },
+  {
+    id: "ai",
+    name: "AI/ML Engineering",
+    description: "Models, PyTorch",
+    icon: <Code className="w-6 h-6" />,
+    color: "bg-rose-600",
+    bgColor: "bg-rose-50",
+    textColor: "text-rose-600",
+    questionsCount: 5,
+  },
+  {
+    id: "sec",
+    name: "Cybersecurity",
+    description: "OWASP, Encryption",
+    icon: <Server className="w-6 h-6" />,
+    color: "bg-slate-600",
+    bgColor: "bg-slate-200",
+    textColor: "text-slate-600",
+    questionsCount: 8,
+  },
 ];
 
 export const Sidebar = ({ currentView, setView, user, onLogout }) => (

@@ -138,14 +138,25 @@ export const InterviewSession = ({ topicId, onFinish, onCancel }) => {
       // Simulating response for now to work without backend
       await new Promise(resolve => setTimeout(resolve, 2000));
       
+      const fillerCount = Math.floor(Math.random() * 8); // 0 to 7 fillers
+      const score = Math.max(1, 10 - fillerCount - Math.floor(Math.random() * 2)); // Score drops with more fillers
+      const confidenceScore = score > 8 ? "High" : score > 5 ? "Medium" : "Low"; 
+
+      // Simulate English Language Filter
+      // In a real app, the API would return an error if language !== 'en'
+      console.log("Analyzing audio for English language content...");
+
       const mockResult = {
         question: currentQuestion,
-        transcript: "This is a simulated transcript of the user's answer.",
-        feedback: "Good explanation of the core concepts. Try to be more concise in the future and avoid filler words.",
-        score: Math.floor(Math.random() * 3) + 7, // 7-9 score
+        transcript: "This is a simulated transcript of the user's answer. It contains technical terms like Big O Notation and Recursion.",
+        feedback: fillerCount > 3 
+          ? "Your answer was correct but contained too many filler words. Try to pause instead of saying 'um' or 'uh'."
+          : "Excellent clear delivery. You explained the concepts well with good pacing.",
+        score: score, 
         audioUrl,
-        duration: 30, // seconds
-        fillerCount: Math.floor(Math.random() * 5),
+        duration: 30, // Duration of the answer recording (mocked 30s)
+        fillerCount: fillerCount,
+        confidence: confidenceScore,
         pacing: "Good",
       };
 
@@ -161,7 +172,7 @@ export const InterviewSession = ({ topicId, onFinish, onCancel }) => {
           date: new Date().toLocaleDateString(),
           score: Math.round(newAnswers.reduce((acc, curr) => acc + curr.score, 0) / newAnswers.length),
           answers: newAnswers,
-          duration: timer, // Total session duration
+          duration: timer, // Total session duration from the main timer
         });
       }
     } catch (error) {
@@ -273,7 +284,7 @@ export const InterviewSession = ({ topicId, onFinish, onCancel }) => {
             </div>
             
             <p className="text-slate-400 font-medium text-sm">
-                {isRecording ? "Listening... Tap to stop." : "Tap the microphone to start answering."}
+                {isRecording ? "Listening... Tap to stop." : "Tap the microphone to start answering. (English Only)"}
             </p>
           </div>
         )}
@@ -283,6 +294,13 @@ export const InterviewSession = ({ topicId, onFinish, onCancel }) => {
 };
 
 export const ResultView = ({ data, onTryAgain, onDashboard }) => {
+  // Calculate average confidence from answers if available, otherwise mock
+  // But here we rely on the specific confidence of the last answer or aggregated? 
+  // Let's use the aggregated score to determine overall confidence
+  const overallConfidence = data.score >= 8 ? "High" : data.score >= 5 ? "Medium" : "Low";
+  const confidenceColor = data.score >= 8 ? "text-green-600" : data.score >= 5 ? "text-yellow-600" : "text-red-600";
+  const avgFillers = (data.answers.reduce((acc, curr) => acc + curr.fillerCount, 0) / data.answers.length).toFixed(1);
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <div className="max-w-5xl mx-auto px-6 py-12">
@@ -344,7 +362,7 @@ export const ResultView = ({ data, onTryAgain, onDashboard }) => {
                   </div>
                   <div>
                       <p className="text-slate-500 text-sm font-bold uppercase tracking-wide">Avg. Fillers</p>
-                      <p className="text-2xl font-extrabold mt-1">2.5 <span className="text-xs font-normal text-slate-400">/ answer</span></p>
+                      <p className="text-2xl font-extrabold mt-1">{avgFillers} <span className="text-xs font-normal text-slate-400">/ answer</span></p>
                   </div>
               </div>
                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start space-x-4">
@@ -353,7 +371,7 @@ export const ResultView = ({ data, onTryAgain, onDashboard }) => {
                   </div>
                   <div>
                       <p className="text-slate-500 text-sm font-bold uppercase tracking-wide">Confidence</p>
-                      <p className="text-2xl font-extrabold mt-1 text-green-600">High</p>
+                      <p className={`text-2xl font-extrabold mt-1 ${confidenceColor}`}>{overallConfidence}</p>
                   </div>
               </div>
           </div>
