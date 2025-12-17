@@ -2,33 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Mic,
   Square,
+  ChevronRight,
   RefreshCw,
-  ArrowRight,
+  Home,
   AlertCircle,
   CheckCircle,
+  Clock,
   Award,
+  BarChart2,
+  Volume2,
+  Cpu,
 } from "lucide-react";
-import { TOPICS } from "./Dashboard"; // Import topics to get names
+import { TOPICS } from "./Dashboard";
 
-// --- Questions Data ---
-const QUESTIONS = {
-  dsa: [
-    "Explain HashMap vs TreeMap.",
-    "Detect cycle in linked list.",
-    "Explain QuickSort.",
-  ],
-  sys: ["Design TinyURL.", "Handle DB scaling.", "Explain Load Balancing."],
-  hr: [
-    "Conflict resolution example?",
-    "Where do you see yourself in 5 years?",
-    "Greatest weakness?",
-  ],
-  fe: ["Virtual DOM?", "useEffect hook?", "State vs Props?"],
-  be: ["Node Event Loop?", "Middleware?", "JWT vs Sessions?"],
-  cloud: ["What is Docker?", "CI/CD Pipeline?", "AWS S3 vs EC2?"],
-};
-
-// --- Recorder Hook ---
+// --- Hook for Native Media Recorder ---
 const useNativeRecorder = ({ onStop }) => {
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef(null);
@@ -39,266 +26,387 @@ const useNativeRecorder = ({ onStop }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       recorderRef.current = new MediaRecorder(stream);
       chunksRef.current = [];
+
       recorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
       };
+
       recorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/wav" });
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const url = URL.createObjectURL(blob);
         if (onStop) onStop(url, blob);
-        stream.getTracks().forEach((track) => track.stop());
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
       };
+
       recorderRef.current.start();
       setIsRecording(true);
     } catch (err) {
-      alert("Microphone access required");
+      console.error("Error accessing microphone:", err);
+      alert("Could not access microphone. Please allow permissions.");
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state === "recording") {
+    if (recorderRef.current && isRecording) {
       recorderRef.current.stop();
       setIsRecording(false);
     }
   };
-  return {
-    status: isRecording ? "recording" : "idle",
-    startRecording,
-    stopRecording,
-  };
+
+  return { isRecording, startRecording, stopRecording };
+};
+
+// --- Mock Questions Data ---
+const QUESTIONS = {
+  dsa: [
+    "Explain the difference between an array and a linked list.",
+    "How does a hash map work?",
+    "What is the time complexity of quicksort?",
+    "Explain the concept of dynamic programming.",
+  ],
+  sys: [
+    "Design a URL shortening service like bit.ly.",
+    "How would you design a rate limiter?",
+    "Explain the CAP theorem.",
+    "What is the difference between horizontal and vertical scaling?",
+  ],
+  hr: [
+    "Tell me about a time you failed.",
+    "Where do you see yourself in 5 years?",
+    "Why do you want to work here?",
+    "Describe a conflict you faced in a team and how you resolved it.",
+  ],
+  fe: [
+    "What is the Virtual DOM?",
+    "Explain React Hooks and why they are used.",
+    "What is the difference between state and props?",
+    "How does CSS Flexbox work?",
+  ],
+  be: [
+    "Explain the Node.js event loop.",
+    "What is middleware in Express?",
+    "sql vs nosql databases?",
+    "How do you handle authentication in an API?",
+  ],
+  cloud: [
+    "What is Docker and how is it used?",
+    "Explain CI/CD pipelines.",
+    "What is serverless computing?",
+    "Difference between IaaS, PaaS, and SaaS?",
+  ],
 };
 
 export const InterviewSession = ({ topicId, onFinish, onCancel }) => {
-  const [timer, setTimer] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [questionIndex, setQuestionIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [timer, setTimer] = useState(0); // in seconds
+  const timerRef = useRef(null);
 
-  const questionsList = QUESTIONS[topicId] || QUESTIONS["dsa"];
-  const question = questionsList[questionIndex % questionsList.length];
+  const topic = TOPICS.find((t) => t.id === topicId);
+  const questions = QUESTIONS[topicId] || QUESTIONS.dsa;
+  const currentQuestion = questions[currentQuestionIndex];
 
-  const { status, startRecording, stopRecording } = useNativeRecorder({
-    onStop: (url, blob) => handleSubmit(blob),
+  // Custom recorder hook
+  const { isRecording, startRecording, stopRecording } = useNativeRecorder({
+    onStop: (url, blob) => handleRecordingStop(url, blob),
   });
 
   useEffect(() => {
-    let interval;
-    if (status === "recording")
-      interval = setInterval(() => setTimer((t) => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [status]);
+    // Start timer
+    timerRef.current = setInterval(() => {
+      setTimer((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, []);
 
-  const handleSubmit = async (audioBlob) => {
-    setIsProcessing(true);
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "interview.wav");
-
-    // Simulate API call for Demo
-    setTimeout(() => {
-      onFinish({
-        score: Math.floor(Math.random() * 15) + 80,
-        filler_count: Math.floor(Math.random() * 4),
-        keywords_found: ["structure", "complexity"],
-        transcript: "This is a simulated transcript for the dark mode demo.",
-        feedback: "Great structure. Try to be more concise.",
-      });
-    }, 2000);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const formatTime = (s) =>
-    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  const handleRecordingStop = async (audioUrl, audioBlob) => {
+    setAnalyzing(true);
+    
+    // Simulate API analysis
+    try {
+      // Simulating response for now to work without backend
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const mockResult = {
+        question: currentQuestion,
+        transcript: "This is a simulated transcript of the user's answer.",
+        feedback: "Good explanation of the core concepts. Try to be more concise in the future and avoid filler words.",
+        score: Math.floor(Math.random() * 3) + 7, // 7-9 score
+        audioUrl,
+        duration: 30, // seconds
+        fillerCount: Math.floor(Math.random() * 5),
+        pacing: "Good",
+      };
+
+      const newAnswers = [...answers, mockResult];
+      setAnswers(newAnswers);
+      setAnalyzing(false);
+
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      } else {
+        onFinish({
+          topic: topic.name,
+          date: new Date().toLocaleDateString(),
+          score: Math.round(newAnswers.reduce((acc, curr) => acc + curr.score, 0) / newAnswers.length),
+          answers: newAnswers,
+          duration: timer, // Total session duration
+        });
+      }
+    } catch (error) {
+      console.error("Analysis failed:", error);
+      setAnalyzing(false);
+      alert("Analysis failed. Please try again.");
+    }
+  };
 
   return (
-    <div className="h-screen bg-slate-950 flex flex-col text-white">
-      <div className="bg-slate-900 border-b border-slate-800 px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+      {/* Header */}
+      <header className="px-8 py-6 bg-white border-b border-slate-200 flex justify-between items-center sticky top-0 z-10">
+        <div className="flex items-center space-x-4">
+          <div className={`p-2.5 rounded-xl ${topic.bgColor} ${topic.textColor}`}>
+            {topic.icon}
+          </div>
+          <div>
+            <h2 className="font-bold text-lg">{topic.name}</h2>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+              Question {currentQuestionIndex + 1} of {questions.length}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2 text-slate-500 font-mono text-sm bg-slate-100 px-3 py-1.5 rounded-lg">
+            <Clock className="w-4 h-4" />
+            <span>{formatTime(timer)}</span>
+          </div>
           <button
             onClick={onCancel}
-            className="text-slate-400 hover:text-white"
+            className="text-sm font-bold text-slate-400 hover:text-red-500 transition-colors"
           >
-            Back
+            End Session
           </button>
-          <span className="text-slate-700">|</span>
-          <span className="font-bold text-slate-300 uppercase tracking-wide text-sm">
-            {TOPICS.find((t) => t.id === topicId)?.name}
-          </span>
         </div>
-        <div className="flex items-center space-x-2 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              status === "recording"
-                ? "bg-red-500 animate-pulse"
-                : "bg-slate-500"
-            }`}
-          ></div>
-          <span className="font-mono font-medium text-slate-300">
-            {formatTime(timer)}
-          </span>
-        </div>
-      </div>
+      </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        <div className="max-w-4xl w-full text-center space-y-10 z-10">
-          <div className="bg-slate-900/80 backdrop-blur-md p-10 rounded-3xl shadow-2xl border border-slate-700">
-            <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4">
-              Question {questionIndex + 1}
-            </h3>
-            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-              "{question}"
-            </h2>
+      {/* Main Content */}
+      <main className="flex-1 max-w-4xl mx-auto w-full p-8 flex flex-col justify-center items-center">
+        {analyzing ? (
+          <div className="text-center space-y-6 animate-fade-in-up">
+            <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+               <div className="absolute inset-0 border-4 border-blue-100 rounded-full animate-ping"></div>
+              <Cpu className="w-10 h-10 animate-pulse" />
+            </div>
+            <h3 className="text-2xl font-bold">Analyzing your answer...</h3>
+            <p className="text-slate-500 max-w-md mx-auto">
+              Our AI is checking your technical accuracy, clarity, and confidence.
+              Sit tight!
+            </p>
           </div>
+        ) : (
+          <div className="w-full text-center space-y-12">
+            <div className="space-y-6">
+              <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 text-slate-500 text-sm font-bold tracking-wide uppercase">
+                {topic.name} Interview
+              </span>
+              <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight max-w-3xl mx-auto">
+                {currentQuestion}
+              </h1>
+            </div>
 
-          <div className="flex flex-col items-center space-y-6">
-            {isProcessing ? (
-              <div className="flex flex-col items-center space-y-4">
-                <div className="w-16 h-16 border-4 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
-                <p className="text-blue-400 font-medium animate-pulse">
-                  Analyzing...
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="relative">
-                  {status === "recording" && (
-                    <span className="absolute inset-0 rounded-full bg-red-500/50 animate-ping"></span>
-                  )}
-                  <button
-                    onClick={
-                      status === "recording" ? stopRecording : startRecording
-                    }
-                    className={`relative z-10 flex items-center justify-center w-24 h-24 rounded-full shadow-2xl transition-transform transform hover:scale-105 ${
-                      status === "recording" ? "bg-red-600" : "bg-blue-600"
-                    }`}
-                  >
-                    {status === "recording" ? (
-                      <Square
-                        className="w-8 h-8 text-white"
-                        fill="currentColor"
-                      />
-                    ) : (
-                      <Mic className="w-10 h-10 text-white" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-slate-400 font-medium">
-                  {status === "recording" ? "Recording..." : "Tap to Answer"}
-                </p>
-              </>
-            )}
+            {/* Visualizer / Waveform Placeholder */}
+            <div className="h-32 flex items-center justify-center space-x-1.5">
+              {isRecording ? (
+                // Animated bars for recording state
+                [...Array(20)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 bg-black rounded-full animate-wave"
+                    style={{
+                      height: `${Math.max(20, Math.random() * 100)}%`,
+                      animationDelay: `${i * 0.05}s`,
+                      animationDuration: '0.8s'
+                    }}
+                  ></div>
+                ))
+              ) : (
+                 <div className="text-slate-300 flex items-center space-x-2">
+                    <Volume2 className="w-6 h-6" />
+                    <span className="text-sm font-medium">Ready to record</span>
+                 </div>
+              )}
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`
+                  relative group flex items-center justify-center w-24 h-24 rounded-full transition-all duration-300 shadow-2xl
+                  ${isRecording 
+                    ? "bg-red-500 hover:bg-red-600 shadow-red-500/30 scale-110" 
+                    : "bg-black hover:bg-slate-800 shadow-slate-400/50 hover:scale-105"
+                  }
+                `}
+              >
+                {isRecording ? (
+                  <Square className="w-8 h-8 text-white fill-current" />
+                ) : (
+                  <Mic className="w-8 h-8 text-white" />
+                )}
+                
+                {/* Ring animation when not recording to prompt user */}
+                {!isRecording && (
+                    <span className="absolute inset-0 rounded-full border border-slate-300 animate-ping opacity-25"></span>
+                )}
+              </button>
+            </div>
+            
+            <p className="text-slate-400 font-medium text-sm">
+                {isRecording ? "Listening... Tap to stop." : "Tap the microphone to start answering."}
+            </p>
           </div>
-        </div>
-      </div>
-      <div className="p-6 text-center">
-        <button
-          onClick={() => setQuestionIndex((i) => i + 1)}
-          className="text-slate-500 hover:text-white text-sm flex items-center justify-center mx-auto space-x-2"
-        >
-          <RefreshCw className="w-3 h-3" /> <span>Skip</span>
-        </button>
-      </div>
+        )}
+      </main>
     </div>
   );
 };
 
 export const ResultView = ({ data, onTryAgain, onDashboard }) => {
-  if (!data) return null;
   return (
-    <div className="h-screen bg-slate-950 overflow-y-auto text-white">
-      <div className="max-w-5xl mx-auto p-8">
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <button
-              onClick={onDashboard}
-              className="text-slate-400 hover:text-white text-sm mb-2 flex items-center"
-            >
-              <ArrowRight className="w-3 h-3 mr-1 rotate-180" /> Dashboard
-            </button>
-            <h2 className="text-3xl font-bold">Session Analysis</h2>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <header className="text-center mb-16">
+          <div className="inline-flex items-center justify-center p-3 bg-green-100 text-green-700 rounded-full mb-6">
+            <CheckCircle className="w-8 h-8" />
           </div>
-          <button
-            onClick={onTryAgain}
-            className="bg-blue-600 hover:bg-blue-500 px-6 py-2.5 rounded-lg font-medium shadow-lg shadow-blue-900/50 flex items-center"
-          >
-            Next <ArrowRight className="w-4 h-4 ml-2" />
-          </button>
+          <h1 className="text-4xl font-extrabold tracking-tight mb-4">Interview Completed!</h1>
+          <p className="text-slate-500 text-lg">
+            Here's how you performed in the <span className="font-bold text-black">{data.topic}</span> session.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          {/* Overall Score Card */}
+          <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center justify-center text-center col-span-1 md:col-span-1">
+             <div className="relative w-40 h-40 mb-6 flex items-center justify-center">
+                {/* Circular Progress Placeholder */}
+                <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="80" cy="80" r="70" stroke="#f1f5f9" strokeWidth="12" fill="none" />
+                    <circle 
+                        cx="80" cy="80" r="70" stroke={data.score >= 8 ? "#16a34a" : data.score >= 5 ? "#eab308" : "#dc2626"} 
+                        strokeWidth="12" fill="none" strokeDasharray="440" strokeDashoffset={440 - (440 * data.score) / 10} 
+                        strokeLinecap="round"
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-5xl font-extrabold">{data.score}</span>
+                    <span className="text-slate-400 text-sm font-medium uppercase mt-1">/ 10</span>
+                </div>
+             </div>
+             <h3 className="text-xl font-bold mb-2">Overall Score</h3>
+             <p className="text-slate-500 text-sm">Based on accuracy & delivery</p>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="md:col-span-2 grid grid-cols-2 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start space-x-4">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                      <Clock className="w-6 h-6" />
+                  </div>
+                  <div>
+                      <p className="text-slate-500 text-sm font-bold uppercase tracking-wide">Duration</p>
+                      <p className="text-2xl font-extrabold mt-1">{Math.floor(data.duration / 60)}m {data.duration % 60}s</p>
+                  </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start space-x-4">
+                  <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl">
+                      <BarChart2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                      <p className="text-slate-500 text-sm font-bold uppercase tracking-wide">Questions</p>
+                      <p className="text-2xl font-extrabold mt-1">{data.answers.length} Solved</p>
+                  </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start space-x-4">
+                  <div className="p-3 bg-orange-50 text-orange-600 rounded-2xl">
+                      <Mic className="w-6 h-6" />
+                  </div>
+                  <div>
+                      <p className="text-slate-500 text-sm font-bold uppercase tracking-wide">Avg. Fillers</p>
+                      <p className="text-2xl font-extrabold mt-1">2.5 <span className="text-xs font-normal text-slate-400">/ answer</span></p>
+                  </div>
+              </div>
+               <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start space-x-4">
+                  <div className="p-3 bg-pink-50 text-pink-600 rounded-2xl">
+                      <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                      <p className="text-slate-500 text-sm font-bold uppercase tracking-wide">Confidence</p>
+                      <p className="text-2xl font-extrabold mt-1 text-green-600">High</p>
+                  </div>
+              </div>
+          </div>
         </div>
 
-        <div className="bg-slate-900 rounded-3xl shadow-xl border border-slate-800 overflow-hidden mb-8 grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-          <div className="p-8 flex flex-col items-center justify-center text-center">
-            <div className="relative w-32 h-32 mb-4">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  fill="transparent"
-                  className="text-slate-800"
-                />
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  fill="transparent"
-                  className="text-blue-500"
-                  strokeDasharray={351.8}
-                  strokeDashoffset={351.8 * (1 - data.score / 100)}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="text-4xl font-extrabold">{data.score}</span>
+        {/* Detailed Breakdown */}
+        <h3 className="text-2xl font-bold mb-8 text-black">Question Breakdown</h3>
+        <div className="space-y-6">
+          {data.answers.map((ans, idx) => (
+            <div key={idx} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex flex-col md:flex-row md:items-start gap-6">
+                <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-3">
+                         <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-xs font-bold uppercase">Question {idx + 1}</span>
+                         <span className="text-slate-400 text-xs flex items-center"><Clock className="w-3 h-3 mr-1"/> {ans.duration}s</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-4">{ans.question}</h4>
+                    
+                    <div className="bg-slate-50 p-4 rounded-xl mb-4 text-slate-600 text-sm leading-relaxed border border-slate-100">
+                        <p className="font-bold text-slate-400 text-xs uppercase mb-2">Feedback</p>
+                        {ans.feedback}
+                    </div>
+                </div>
+                
+                <div className="flex flex-row md:flex-col items-center gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 min-w-[120px]">
+                    <div className="text-center">
+                        <span className={`text-2xl font-extrabold ${ans.score >= 8 ? "text-green-600" : ans.score >= 5 ? "text-yellow-600" : "text-red-600"}`}>
+                            {ans.score}/10
+                        </span>
+                        <p className="text-xs text-slate-400 uppercase font-bold">Score</p>
+                    </div>
+                </div>
               </div>
             </div>
-            <h3 className="text-slate-400 font-bold uppercase tracking-wider text-sm">
-              Overall Score
-            </h3>
-          </div>
-          <div className="p-8 space-y-6">
-            <div>
-              <div className="flex items-center space-x-2 mb-2 font-bold text-slate-200">
-                <AlertCircle className="w-5 h-5 text-orange-500" />
-                <span>Clarity</span>
-              </div>
-              <div className="flex justify-between text-sm bg-slate-950 p-3 rounded-lg border border-slate-800">
-                <span>Filler Words</span>
-                <span className="font-mono font-bold text-orange-500">
-                  {data.filler_count}
-                </span>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center space-x-2 mb-2 font-bold text-slate-200">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span>Key Terms</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {data.keywords_found.map((k, i) => (
-                  <span
-                    key={i}
-                    className="px-2 py-1 bg-green-900/30 text-green-400 rounded-md text-xs border border-green-900"
-                  >
-                    {k}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="p-8 bg-slate-950/50">
-            <h3 className="font-bold mb-4 flex items-center">
-              <Award className="w-5 h-5 text-purple-500 mr-2" /> AI Feedback
-            </h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-4">
-              {data.feedback}
-            </p>
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-500 italic">
-              "{data.transcript}"
-            </div>
-          </div>
+          ))}
+        </div>
+
+        <div className="mt-16 flex justify-center space-x-6">
+            <button
+                onClick={onDashboard}
+                className="px-8 py-4 bg-white border border-slate-200 text-slate-900 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center shadow-sm"
+            >
+                <Home className="w-5 h-5 mr-2" /> Back to Dashboard
+            </button>
+            <button
+                onClick={onTryAgain}
+                className="px-8 py-4 bg-black text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center shadow-lg hover:shadow-xl hover:-translate-y-1"
+            >
+                <RefreshCw className="w-5 h-5 mr-2" /> Start New Session
+            </button>
         </div>
       </div>
     </div>
   );
 };
+

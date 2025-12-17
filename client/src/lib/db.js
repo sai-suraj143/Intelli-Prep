@@ -1,23 +1,19 @@
-// This simulates a database using browser LocalStorage
 export const db = {
   getUsers: () => JSON.parse(localStorage.getItem("intelli_users") || "[]"),
-
   saveUser: (user) => {
     const users = db.getUsers();
     const existingIndex = users.findIndex((u) => u.email === user.email);
     if (existingIndex >= 0) {
-      users[existingIndex] = user; // Update
+      users[existingIndex] = user;
     } else {
-      users.push(user); // Insert
+      users.push(user);
     }
     localStorage.setItem("intelli_users", JSON.stringify(users));
   },
-
   findUser: (email, password) => {
     const users = db.getUsers();
     return users.find((u) => u.email === email && u.password === password);
   },
-
   register: (name, email, password) => {
     const users = db.getUsers();
     if (users.find((u) => u.email === email))
