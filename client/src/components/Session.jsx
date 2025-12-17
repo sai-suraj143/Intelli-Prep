@@ -390,6 +390,16 @@ export const ResultView = ({ data, onTryAgain, onDashboard }) => {
                     </div>
                     <h4 className="text-lg font-bold text-slate-900 mb-4">{ans.question}</h4>
                     
+                    {/* Audio Player */}
+                    {ans.audioUrl && (
+                      <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center space-x-3">
+                        <div className="p-2 bg-white rounded-full shadow-sm border border-slate-200">
+                          <Volume2 className="w-4 h-4 text-slate-700" />
+                        </div>
+                        <audio controls src={ans.audioUrl} className="w-full h-8 accent-slate-900" />
+                      </div>
+                    )}
+
                     <div className="bg-slate-50 p-4 rounded-xl mb-4 text-slate-600 text-sm leading-relaxed border border-slate-100">
                         <p className="font-bold text-slate-400 text-xs uppercase mb-2">Feedback</p>
                         {ans.feedback}
