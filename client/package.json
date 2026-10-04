@@ -1,8 +1,9 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Intelli-Prep React frontend: landing page, auth, dashboard, interview session and results",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
