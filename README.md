@@ -55,6 +55,18 @@ npm run dev:client   # Vite dev server
 npm run dev:server   # Express, with --watch reload
 ```
 
+### Google Sign-In (optional)
+
+1. Create an OAuth 2.0 Client ID (Web application) in
+   [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Add `http://localhost:5173` under **Authorized JavaScript origins**.
+3. Copy `client/.env.example` to `client/.env` and set
+   `VITE_GOOGLE_CLIENT_ID=<your-client-id>`.
+4. Restart the Vite dev server.
+
+Without a client ID the "Continue with Google" button falls back to a
+clearly-labelled local demo account, since this project has no auth backend.
+
 ## Other scripts
 
 | Command            | Description                                  |

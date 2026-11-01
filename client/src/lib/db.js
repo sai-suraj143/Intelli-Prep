@@ -23,6 +23,7 @@ export const db = {
       name,
       email,
       password,
+      provider: "password",
       progress: {},
       totalHours: 0,
       streak: 1,
@@ -30,5 +31,36 @@ export const db = {
     };
     db.saveUser(newUser);
     return { user: newUser };
+  },
+  findOrCreateGoogleUser: ({ name, email, picture }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const users = db.getUsers();
+    const existing = users.find((u) => u.email === normalizedEmail);
+
+    if (existing) {
+      // Link the Google identity to an existing account instead of creating a duplicate.
+      const linkedUser = {
+        ...existing,
+        provider: existing.provider || "google",
+        picture: existing.picture || picture || "",
+        name: existing.name || name,
+      };
+      db.saveUser(linkedUser);
+      return linkedUser;
+    }
+
+    const newUser = {
+      name: name || normalizedEmail.split("@")[0],
+      email: normalizedEmail,
+      password: null,
+      provider: "google",
+      picture: picture || "",
+      progress: {},
+      totalHours: 0,
+      streak: 1,
+      joinedAt: new Date().toISOString(),
+    };
+    db.saveUser(newUser);
+    return newUser;
   },
 };
